@@ -4,9 +4,9 @@ import time
 class Proxy:
     def __init__(self):
         self.__ip = ''
-        self.__port = 0
-        #__delay应该是一个整数,但传入字符串也可以。比较的时候转int,虽然可能会稍微影响效率
-        #__delay作为优先队列排序的依据
+        self.__port = ''
+        # __delay应该是一个整数,但传入字符串也可以。比较的时候转int,虽然可能会稍微影响效率
+        # __delay作为优先队列排序的依据
         self.__delay = 0
         self.__type = ''
         self.__location = ''
@@ -24,7 +24,7 @@ class Proxy:
         return int(self.delay) == int(other.delay)
 
     def __str__(self):
-        s = 'ip = ' + self.__ip, 'port = ' + str(self.__port), 'delay = ' + str(self.__delay), 'type = ' + self.__type, 'location = ' + self.__location, 'inTime = ' + self.__inTime, 'protocol = ' + self.__protocol, 'life = ' + self.__life
+        s = 'ip = ' + self.__ip, 'port = ' + self.__port, 'delay = ' + str(self.__delay), 'type = ' + self.__type, 'location = ' + self.__location, 'inTime = ' + self.__inTime, 'protocol = ' + self.__protocol, 'life = ' + self.__life
         return str(s)
 
     @property
@@ -96,7 +96,7 @@ if __name__ == '__main__':
     p1 = Proxy()
     p2 = Proxy()
     p1.delay = '200'
-    p2.delay =  200
+    p2.delay = 200
     print(type(p1.__str__()))
 
 
