@@ -140,8 +140,9 @@ class ProxyFarmer:
 
 # pymysql的connection是非线程安全的
 def save(proxy):
-    conn = pymysql.connect(host='localhost', user='username', passwd='password', db='Eroxy', port=3306, charset='utf8')
+    conn = pymysql.connect(host='localhost', user='earayu', passwd='qwqwqw', db='Eroxy', port=3306, charset='utf8')
     cur = conn.cursor()
+    # TODO 这里和rules严重耦合了，需要修改
     sql = 'insert into proxy (ip,port,delay,inTime,location,protocal) VALUES (%s,%s,%s,%s,%s,%s)'
     cur.execute(sql, (proxy.ip, proxy.port, proxy.delay, proxy.inTime, proxy.location, proxy.protocol))
     conn.commit()
