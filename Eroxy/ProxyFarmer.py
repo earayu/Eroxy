@@ -127,7 +127,7 @@ class ProxyFarmer:
 
 
 def save(proxy):
-    conn = pymysql.connect(host='localhost', user='earayu', passwd='qwqwqw', db='Eroxy', port=3306,
+    conn = pymysql.connect(host='localhost', user='username', passwd='password', db='Eroxy', port=3306,
                            charset='utf8')
     cur = conn.cursor()  # 获取一个游标
     sql = 'insert into proxy (ip,port,delay,location,inTime,protocal)' \
