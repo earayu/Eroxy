@@ -10,17 +10,6 @@ import pymysql
 # 各个线程过滤完IP后都存在这里，按照delay排序
 que = queue.PriorityQueue()
 
-my_headers = \
-    {
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-        "Accept-Encoding": "gzip, deflate, sdch",
-        "Accept-Language": "zh-CN,zh;q=0.8",
-        "Cache-Control": "max-age=0",
-        "Connection": "keep-alive",
-        "Upgrade-Insecure-Requests": "1",
-        "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36",
-    }
-
 
 # TODO 需要加入header, proxies, data, cookies 甚至auth 等字段。
 # TODO Proxy类可以不填完整，只要有IP和PORT就行了。有了这些可以去IP库查询归属地，运营商等信息
@@ -144,16 +133,17 @@ class ProxyFarmer:
         for proxy in gen:
             try:
                 save(proxy)
+            # TODO 这里应该抓取主键重复错误，在下面的代码中将proxy记录update
             except Exception as e:
                 print(e)
 
 
 # pymysql的connection是非线程安全的
 def save(proxy):
-    conn = pymysql.connect(host='localhost', user='earayu', passwd='qwqwqw', db='Eroxy', port=3306, charset='utf8')
+    conn = pymysql.connect(host='localhost', user='username', passwd='password', db='Eroxy', port=3306, charset='utf8')
     cur = conn.cursor()
-    sql = 'insert into proxy (ip,port,delay,inTime) VALUES (%s,%s,%s,%s)'
-    cur.execute(sql, (proxy.ip, proxy.port, proxy.delay, proxy.inTime))
+    sql = 'insert into proxy (ip,port,delay,inTime,location,protocal) VALUES (%s,%s,%s,%s,%s,%s)'
+    cur.execute(sql, (proxy.ip, proxy.port, proxy.delay, proxy.inTime, proxy.location, proxy.protocol))
     conn.commit()
     cur.close()  # 关闭游标
     conn.close()  # 释放数据库资源
@@ -177,6 +167,17 @@ def judger(proxy, timeout=10, https=False, verify=None):
 
 
 if __name__ == '__main__':
+    my_headers = \
+        {
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+            "Accept-Encoding": "gzip, deflate, sdch",
+            "Accept-Language": "zh-CN,zh;q=0.8",
+            "Cache-Control": "max-age=0",
+            "Connection": "keep-alive",
+            "Upgrade-Insecure-Requests": "1",
+            "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36",
+        }
+
     p = ProxyFarmer('http://www.youdaili.net/Daili/http/4435.html')
     p.rules("\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", '(?<=\d:)\d{2,5}(?=@)', protocol_rule='(?<=@).*?(?=#)', \
             location_rule='(?<=P#).*?(?=\W)')
@@ -186,7 +187,6 @@ if __name__ == '__main__':
 
     p2 = ProxyFarmer('http://www.idcloak.com/proxylist/free-proxy-ip-list.html')
     p2.rules("\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", '(?<=<td>)\d{2,5}(?=</td>)', protocol_rule='(?<=<td>)https?(?=</td>)',
-             location_rule='(?<=">)[A-Za-z]*?(?=&nbsp;)'
-             )
+             location_rule='(?<=">)[A-Za-z]*?(?=&nbsp;)')
     p2.hibernate()
 
