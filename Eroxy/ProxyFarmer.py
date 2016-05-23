@@ -115,8 +115,8 @@ class ProxyFarmer:
                 p.life = r_life[i]
             yield p
 
-    # 加工收获的raw_ip
-    def process(self):
+    # 筛选raw_ip，挑出符合要求的
+    def shive(self):
         threads = []
         for proxy in self.harvest():
             t = threading.Thread(target=judger, args=(proxy,))
@@ -129,11 +129,11 @@ class ProxyFarmer:
             yield _proxy
 
     def hibernate(self):
-        gen = self.process()
+        gen = self.shive()
         for proxy in gen:
             try:
                 save(proxy)
-            # TODO 这里应该抓取主键重复错误，在下面的代码中将proxy记录update
+            # TODO 这里应该处理主键重复错误，更新记录。或者写个saveOrUpdate函数
             except Exception as e:
                 print(e)
 
@@ -179,12 +179,12 @@ if __name__ == '__main__':
             "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36",
         }
 
-    p = ProxyFarmer('http://www.youdaili.net/Daili/http/4435.html')
-    p.rules("\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", '(?<=\d:)\d{2,5}(?=@)', protocol_rule='(?<=@).*?(?=#)', \
-            location_rule='(?<=P#).*?(?=\W)')
-    p.headers = my_headers
-    p.proxies = {'http': '117.21.182.110:80'}
-    p.hibernate()
+    # p = ProxyFarmer('http://www.youdaili.net/Daili/http/4435.html')
+    # p.rules("\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", '(?<=\d:)\d{2,5}(?=@)', protocol_rule='(?<=@).*?(?=#)',
+    #         location_rule='(?<=P#).*?(?=\W)')
+    # p.headers = my_headers
+    # p.proxies = {'http': '117.21.182.110:80'}
+    # p.hibernate()
 
     p2 = ProxyFarmer('http://www.idcloak.com/proxylist/free-proxy-ip-list.html')
     p2.rules("\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", '(?<=<td>)\d{2,5}(?=</td>)', protocol_rule='(?<=<td>)https?(?=</td>)',
