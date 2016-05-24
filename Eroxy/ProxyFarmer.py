@@ -143,17 +143,17 @@ class ProxyFarmer:
 def save(proxy):
     conn = pymysql.connect(host='localhost', user='earayu', passwd='qwqwqw', db='Eroxy', port=3306, charset='utf8')
     cur = conn.cursor()
-    ssql = 'select ip, port from proxy where ip = %s'
+    ssql = 'select ip, port from proxy2 where ip = %s'
     cur.execute(ssql, (proxy.ip, ))
     ret = cur.fetchall()
     # update the delay if the proxy exists, or do a insertation
     if ret is not ():
-        usql = 'update proxy set delay=%s where ip=%s'
+        usql = 'update proxy2 set delay=%s where ip=%s'
         cur.execute(usql, (proxy.delay, proxy.ip))
         print(usql % (proxy.delay, proxy.ip))
     else:
         # TODO 这里和rules严重耦合了，需要修改
-        isql = 'insert into proxy (ip,port,delay,inTime,location,protocal) VALUES (%s,%s,%s,%s,%s,%s)'
+        isql = 'insert into proxy2 (ip,port,delay,inTime,location,protocal) VALUES (%s,%s,%s,%s,%s,%s)'
         cur.execute(isql, (proxy.ip, proxy.port, proxy.delay, proxy.inTime, proxy.location, proxy.protocol))
         print(isql % (proxy.ip, proxy.port, proxy.delay, proxy.inTime, proxy.location, proxy.protocol))
     conn.commit()
@@ -162,8 +162,8 @@ def save(proxy):
 
 
 # 获取形如 2016-05-23 13:01:21 的时间字符串
-def getTime(format="%Y-%m-%d %H:%M:%S"):
-    timeArray = time.localtime(int(time.time()))
+def getTime(format="%Y-%m-%d %H:%M:%S", offset=0):
+    timeArray = time.localtime(int(time.time() + offset))
     formatTime = time.strftime(format, timeArray)
     return formatTime
 
