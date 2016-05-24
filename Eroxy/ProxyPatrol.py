@@ -6,7 +6,7 @@ import time
 from Eroxy.utils import select
 
 
-# TODO 不要直接删除，最好放在另一个表中。给第二次机会
+# TODO 2次验证都失败的ip是删掉还是转移另一个表中？
 def patrol(ip, port, alive):
     _proxy = ip + ':' + port
     ret = HTTPJudger(_proxy)

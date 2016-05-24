@@ -6,27 +6,37 @@ import threading
 import queue
 import time
 import pymysql
+from Eroxy.utils import getTime
 
 # 各个线程过滤完IP后都存在这里，按照delay排序
 que = queue.PriorityQueue()
 
 
-# TODO 需要加入header, proxies, data, cookies 甚至auth 等字段。
-# TODO Proxy类可以不填完整，只要有IP和PORT就行了。有了这些可以去IP库查询归属地，运营商等信息
+# ip_rule和port_rule是必填项。
+# TODO 缺点在于必须用正则表达式精确匹配IP和PORT。
 class ProxyFarmer:
+    """
+    to use this class, you should customize a ProxyFarmer first, url and rules are needed.
+    """
     def __init__(self, url):
         self.__url = url
         self.__ip_rule = None
         self.__port_rule = None
-        self.__delay_rule = None
         self.__type_rule = None
         self.__location_rule = None
-        self.__inTime_rule = None
         self.__protocol_rule = None
-        self.__life_rule = None
         self.__headers = None
         self.__cookies = None
         self.__proxies = None
+        self.__data = None
+
+    @property
+    def data(self):
+        return self.__data
+
+    @data.setter
+    def data(self, data):
+        self.__data = data
 
     @property
     def headers(self):
@@ -52,21 +62,18 @@ class ProxyFarmer:
     def proxies(self, proxies):
         self.__proxies = proxies
 
-    # IP必须设定规则，因为需要提供一个页面抓取的Proxy计数。
-    # TODO 这儿rule要提供6个正则表达式太麻烦了，也许可以建立一个rules对象来管理。
-    # TODO 而且ProxyFarmer对正则表达式的准确度要求较高。不准确的正则表达式会引发不确定的错误。
-    def rules(self, ip_rule, port_rule=None, type_rule=None, location_rule=None, protocol_rule=None, life_rule=None):
+    # TODO 也许可以建立一个rules对象来管理，5个正则表达式作为参数，个人感觉不太友好
+    def rules(self, ip_rule, port_rule, type_rule=None, location_rule=None, protocol_rule=None):
         self.__ip_rule = ip_rule
         self.__port_rule = port_rule
         self.__type_rule = type_rule
         self.__location_rule = location_rule
         self.__protocol_rule = protocol_rule
-        self.__life_rule = life_rule
 
     # 收获raw_ip. 这些IP没经过验证，很可能不能使用。
     def harvest(self):
         try:
-            r = requests.get(self.__url, timeout=(10, 30), headers=self.__headers, cookies=self.__cookies, proxies=self.__proxies)
+            r = requests.get(self.__url, timeout=10, headers=self.__headers, cookies=self.__cookies, proxies=self.__proxies, data=self.__data)
             print(r.status_code)
         except:
             return None
@@ -94,10 +101,10 @@ class ProxyFarmer:
         else:
             r_protocol = None
 
-        if self.__life_rule is not None:
-            r_life = re.findall(self.__life_rule, r.text)
-        else:
-            r_life = None
+        # if self.__life_rule is not None:
+        #     r_life = re.findall(self.__life_rule, r.text)
+        # else:
+        #     r_life = None
 
         for i in range(0, len(r_ip)):
             p = Proxy()
@@ -111,12 +118,11 @@ class ProxyFarmer:
                 p.location = r_location[i]
             if r_protocol is not None:
                 p.protocol = r_protocol[i]
-            if r_life is not None:
-                p.life = r_life[i]
+            # if r_life is not None:
+            #     p.life = r_life[i]
             yield p
 
     # 筛选raw_ip，挑出符合要求的
-    # TODO 这里开线程，阻塞至最慢的线程返回
     def shive(self):
         threads = []
         for proxy in self.harvest():
@@ -129,12 +135,12 @@ class ProxyFarmer:
             _proxy = que.get()
             yield _proxy
 
+    # TODO 将数据持久化, 通过回调函数save， 可以自定义持久化方式。需要实现save接口
     def hibernate(self):
         gen = self.shive()
         for proxy in gen:
             try:
                 save(proxy)
-            # TODO 这里应该处理主键重复错误，更新记录。或者写个saveOrUpdate函数
             except Exception as e:
                 print(e)
 
@@ -148,30 +154,23 @@ def save(proxy):
     ret = cur.fetchall()
     # update the delay if the proxy exists, or do a insertation
     if ret is not ():
-        usql = 'update proxy2 set delay=%s where ip=%s'
+        usql = 'update proxy2 set delay=%s, alive=1 where ip=%s'
         cur.execute(usql, (proxy.delay, proxy.ip))
         print(usql % (proxy.delay, proxy.ip))
     else:
         # TODO 这里和rules严重耦合了，需要修改
-        isql = 'insert into proxy2 (ip,port,delay,inTime,location,protocal) VALUES (%s,%s,%s,%s,%s,%s)'
-        cur.execute(isql, (proxy.ip, proxy.port, proxy.delay, proxy.inTime, proxy.location, proxy.protocol))
+        isql = 'insert into proxy2 (ip,port,delay,inTime,location,protocal,alive) VALUES (%s,%s,%s,%s,%s,%s,1)'
+        cur.execute(isql, (proxy.ip, proxy.port, None, None, None, None))
+        # cur.execute(isql, (proxy.ip, proxy.port, proxy.delay, proxy.inTime, proxy.location, proxy.protocol))
         print(isql % (proxy.ip, proxy.port, proxy.delay, proxy.inTime, proxy.location, proxy.protocol))
     conn.commit()
     cur.close()  # 关闭游标
     conn.close()  # 释放数据库资源
 
 
-# 获取形如 2016-05-23 13:01:21 的时间字符串
-def getTime(format="%Y-%m-%d %H:%M:%S", offset=0):
-    timeArray = time.localtime(int(time.time() + offset))
-    formatTime = time.strftime(format, timeArray)
-    return formatTime
-
-
-# 送出可用IP
-# TODO judger应该可以自定义过滤规则。待实现
-def judger(proxy, timeout=10, https=False, verify=None):
-    t = HTTPJudger(proxy.ip + ':' + proxy.port, timeout, https, verify)
+# 送出可用IP, anyJudger接受一个回调函数。可以自定义proxy可用性的判定规则。需要实现类似于HTTPJudger的接口
+def judger(proxy, anyJudger=HTTPJudger, timeout=10, https=False, verify=None):
+    t = anyJudger(proxy.ip + ':' + proxy.port, timeout, https, verify)
     if t is not None:
         proxy.inTime = getTime()
         proxy.delay = t[1]
@@ -201,7 +200,10 @@ if __name__ == '__main__':
     p2.rules("\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", '(?<=<td>)\d{2,5}(?=</td>)', protocol_rule='(?<=<td>)https?(?=</td>)',
              location_rule='(?<=">)[A-Za-z]*?(?=&nbsp;)')
 
-    while True:
-        p2.hibernate()
-        time.sleep(300)
+    # while True:
+    #     p2.hibernate()
+    #     time.sleep(300)
+    p = Proxy()
+    p.ip = '111111111111'
+    p.port = '7777'
 
