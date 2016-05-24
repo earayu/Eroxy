@@ -116,6 +116,7 @@ class ProxyFarmer:
             yield p
 
     # 筛选raw_ip，挑出符合要求的
+    # TODO 这里开线程，阻塞至最慢的线程返回
     def shive(self):
         threads = []
         for proxy in self.harvest():
@@ -142,9 +143,19 @@ class ProxyFarmer:
 def save(proxy):
     conn = pymysql.connect(host='localhost', user='earayu', passwd='qwqwqw', db='Eroxy', port=3306, charset='utf8')
     cur = conn.cursor()
-    # TODO 这里和rules严重耦合了，需要修改
-    sql = 'insert into proxy (ip,port,delay,inTime,location,protocal) VALUES (%s,%s,%s,%s,%s,%s)'
-    cur.execute(sql, (proxy.ip, proxy.port, proxy.delay, proxy.inTime, proxy.location, proxy.protocol))
+    ssql = 'select ip, port from proxy where ip = %s'
+    cur.execute(ssql, (proxy.ip, ))
+    ret = cur.fetchall()
+    # update the delay if the proxy exists, or do a insertation
+    if ret is not ():
+        usql = 'update proxy set delay=%s where ip=%s'
+        cur.execute(usql, (proxy.delay, proxy.ip))
+        print(usql % (proxy.delay, proxy.ip))
+    else:
+        # TODO 这里和rules严重耦合了，需要修改
+        isql = 'insert into proxy (ip,port,delay,inTime,location,protocal) VALUES (%s,%s,%s,%s,%s,%s)'
+        cur.execute(isql, (proxy.ip, proxy.port, proxy.delay, proxy.inTime, proxy.location, proxy.protocol))
+        print(isql % (proxy.ip, proxy.port, proxy.delay, proxy.inTime, proxy.location, proxy.protocol))
     conn.commit()
     cur.close()  # 关闭游标
     conn.close()  # 释放数据库资源
@@ -189,5 +200,8 @@ if __name__ == '__main__':
     p2 = ProxyFarmer('http://www.idcloak.com/proxylist/free-proxy-ip-list.html')
     p2.rules("\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", '(?<=<td>)\d{2,5}(?=</td>)', protocol_rule='(?<=<td>)https?(?=</td>)',
              location_rule='(?<=">)[A-Za-z]*?(?=&nbsp;)')
-    p2.hibernate()
+
+    while True:
+        p2.hibernate()
+        time.sleep(300)
 
