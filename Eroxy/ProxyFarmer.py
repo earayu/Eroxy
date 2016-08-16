@@ -76,7 +76,7 @@ class ProxyFarmer:
     # 收获raw_ip. 这些IP没经过验证。
     def harvest(self):
         try:
-            r = requests.get(self.__url, timeout=10, headers=self.__headers, cookies=self.__cookies, proxies=self.__proxies, data=self.__data)
+            r = requests.post(self.__url, timeout=10, headers=self.__headers, cookies=self.__cookies, proxies=self.__proxies, data=self.__data)
         except:
             return None
 
