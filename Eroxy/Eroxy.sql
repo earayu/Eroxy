@@ -6,5 +6,6 @@ protocal varchar(255),
 type varchar(255),
 location varchar(255),
 inTime datetime,
-life varchar(255)
+life varchar(255),
+alive tinyint
 );

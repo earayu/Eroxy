@@ -4,7 +4,6 @@ from Eroxy.Proxy import Proxy
 from Eroxy.IPJudger import HTTPJudger
 import threading
 import queue
-import time
 import pymysql
 from Eroxy.utils import getTime
 
@@ -16,15 +15,19 @@ que = queue.PriorityQueue()
 # TODO 缺点在于必须用正则表达式精确匹配IP和PORT。
 class ProxyFarmer:
     """
-    to use this class, you should customize a ProxyFarmer first, url and rules are needed.
+    使用前先DIY一个实例出来, url和 rule是必须的
+    _rule结尾的是正则表达式参数。分别匹配页面上的ip, port, 匿名性, 所在地, 协议类型
+    可以设置headers和cookies, 甚至是proxies和data。以免被网站屏蔽这个爬虫
     """
     def __init__(self, url):
         self.__url = url
+
         self.__ip_rule = None
         self.__port_rule = None
         self.__type_rule = None
         self.__location_rule = None
         self.__protocol_rule = None
+
         self.__headers = None
         self.__cookies = None
         self.__proxies = None
@@ -62,7 +65,7 @@ class ProxyFarmer:
     def proxies(self, proxies):
         self.__proxies = proxies
 
-    # TODO 也许可以建立一个rules对象来管理，5个正则表达式作为参数，个人感觉不太友好
+    # 5个正则表达式作为参数，个人感觉不太友好
     def rules(self, ip_rule, port_rule, type_rule=None, location_rule=None, protocol_rule=None):
         self.__ip_rule = ip_rule
         self.__port_rule = port_rule
@@ -70,14 +73,14 @@ class ProxyFarmer:
         self.__location_rule = location_rule
         self.__protocol_rule = protocol_rule
 
-    # 收获raw_ip. 这些IP没经过验证，很可能不能使用。
+    # 收获raw_ip. 这些IP没经过验证。
     def harvest(self):
         try:
             r = requests.get(self.__url, timeout=10, headers=self.__headers, cookies=self.__cookies, proxies=self.__proxies, data=self.__data)
-            print(r.status_code)
         except:
             return None
 
+        # 用正则解析页面内容
         if self.__ip_rule is not None:
             r_ip = re.findall(self.__ip_rule, r.text)
 
@@ -101,11 +104,7 @@ class ProxyFarmer:
         else:
             r_protocol = None
 
-        # if self.__life_rule is not None:
-        #     r_life = re.findall(self.__life_rule, r.text)
-        # else:
-        #     r_life = None
-
+        # 生成Proxy对象
         for i in range(0, len(r_ip)):
             p = Proxy()
             if r_ip is not None:
@@ -118,57 +117,56 @@ class ProxyFarmer:
                 p.location = r_location[i]
             if r_protocol is not None:
                 p.protocol = r_protocol[i]
-            # if r_life is not None:
-            #     p.life = r_life[i]
             yield p
 
     # 筛选raw_ip，挑出符合要求的
+    # 为每个代理开一个线程, 然后测试可用性
     def shive(self):
         threads = []
         for proxy in self.harvest():
             t = threading.Thread(target=judger, args=(proxy,))
             threads.append(t)
             t.start()
+        # TODO 阻塞了, 要所有线程都完成才能进行下一步
         for t in threads:
             t.join()
         while not que.empty():
             _proxy = que.get()
             yield _proxy
 
-    # TODO 将数据持久化, 通过回调函数save， 可以自定义持久化方式。需要实现save接口
+    # 将数据持久化, 通过回调函数save, 可以自定义持久化方式。需要实现save接口
     def hibernate(self):
         gen = self.shive()
         for proxy in gen:
             try:
-                save(proxy)
+                save2mysql(proxy)
             except Exception as e:
                 print(e)
 
 
 # pymysql的connection是非线程安全的
-def save(proxy):
-    conn = pymysql.connect(host='localhost', user='earayu', passwd='qwqwqw', db='Eroxy', port=3306, charset='utf8')
+def save2mysql(proxy):
+    conn = pymysql.connect(host='localhost', user='root', passwd='qwqwqw', db='Eroxy', port=3306, charset='utf8')
     cur = conn.cursor()
-    ssql = 'select ip, port from proxy2 where ip = %s'
+    ssql = 'select ip, port from proxy where ip = %s'
     cur.execute(ssql, (proxy.ip, ))
     ret = cur.fetchall()
-    # update the delay if the proxy exists, or do a insertation
+    # 如果该IP已经存在, 更新延迟。否则插入数据库
     if ret is not ():
-        usql = 'update proxy2 set delay=%s, alive=1 where ip=%s'
+        usql = 'update proxy set delay=%s, alive=1 where ip=%s'
         cur.execute(usql, (proxy.delay, proxy.ip))
         print(usql % (proxy.delay, proxy.ip))
     else:
-        # TODO 这里和rules严重耦合了，需要修改
-        isql = 'insert into proxy2 (ip,port,delay,inTime,location,protocal,alive) VALUES (%s,%s,%s,%s,%s,%s,1)'
-        cur.execute(isql, (proxy.ip, proxy.port, None, None, None, None))
-        # cur.execute(isql, (proxy.ip, proxy.port, proxy.delay, proxy.inTime, proxy.location, proxy.protocol))
+        isql = 'insert into proxy (ip,port,delay,inTime,location,protocal,alive) VALUES (%s,%s,%s,%s,%s,%s,1)'
+        cur.execute(isql, (proxy.ip, proxy.port, proxy.delay, proxy.inTime, proxy.location, proxy.protocol))
         print(isql % (proxy.ip, proxy.port, proxy.delay, proxy.inTime, proxy.location, proxy.protocol))
     conn.commit()
     cur.close()  # 关闭游标
     conn.close()  # 释放数据库资源
 
 
-# 送出可用IP, anyJudger接受一个回调函数。可以自定义proxy可用性的判定规则。需要实现类似于HTTPJudger的接口
+# 生成可用IP, judger接受一个回调函数。可以自定义proxy可用性的判定规则。
+# anyJudger参数需要实现类似于HTTPJudger的接口
 def judger(proxy, anyJudger=HTTPJudger, timeout=10, https=False, verify=None):
     t = anyJudger(proxy.ip + ':' + proxy.port, timeout, https, verify)
     if t is not None:
@@ -189,21 +187,9 @@ if __name__ == '__main__':
             "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36",
         }
 
-    # p = ProxyFarmer('http://www.youdaili.net/Daili/http/4435.html')
-    # p.rules("\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", '(?<=\d:)\d{2,5}(?=@)', protocol_rule='(?<=@).*?(?=#)',
-    #         location_rule='(?<=P#).*?(?=\W)')
-    # p.headers = my_headers
-    # p.proxies = {'http': '117.21.182.110:80'}
-    # p.hibernate()
+    p2 = ProxyFarmer('http://www.xicidaili.com/')
+    p2.rules("\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", '(?<=<td>)\d{2,5}(?=</td>)')
+    p2.headers = my_headers
 
-    p2 = ProxyFarmer('http://www.idcloak.com/proxylist/free-proxy-ip-list.html')
-    p2.rules("\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", '(?<=<td>)\d{2,5}(?=</td>)', protocol_rule='(?<=<td>)https?(?=</td>)',
-             location_rule='(?<=">)[A-Za-z]*?(?=&nbsp;)')
-
-    # while True:
-    #     p2.hibernate()
-    #     time.sleep(300)
-    p = Proxy()
-    p.ip = '111111111111'
-    p.port = '7777'
+    p2.hibernate()
 

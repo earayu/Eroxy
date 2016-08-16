@@ -11,20 +11,20 @@ def patrol(ip, port, alive):
     _proxy = ip + ':' + port
     ret = HTTPJudger(_proxy)
     if ret is not None:
-        usql = 'update proxy2 set delay=%s, alive=1 where ip=%s'
+        usql = 'update proxy set delay=%s, alive=1 where ip=%s'
         execute(usql, (ret[1], ret[0][:ret[0].index(':')]))
     elif alive == 0:
-        dsql = 'delete from proxy2 where ip=%s'
+        dsql = 'delete from proxy where ip=%s'
         execute(dsql, (ip, ))
     elif alive == 1:
-        usql = 'update proxy2 set alive=0 where ip = %s'
+        usql = 'update proxy set alive=0 where ip = %s'
         print(usql % ip)
         execute(usql, (ip,))
 
 
 def loop(offset=-3600):
     while True:
-        sql = 'select ip,port,alive from proxy2 where inTime < %s'
+        sql = 'select ip,port,alive from proxy where inTime < %s'
         data = select(sql, getTime(offset=offset))
         if data is not ():
             for i in data:
@@ -35,4 +35,4 @@ def loop(offset=-3600):
 
 
 if __name__ == '__main__':
-    loop(-1200)
+    loop(-60)

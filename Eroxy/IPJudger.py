@@ -32,7 +32,7 @@ def HTTPJudger(proxy, timeout=10, https=False, verify=None):
         return None
 
 
-# TODO 通用的IP验证函数，能验证各种协议   HTTP,HTTPS,SOCK5
+# 通用的IP验证函数，能验证各种协议   HTTP,HTTPS,SOCK5
 def ProxyJudger(proxy, timeout=10, protocal='HTTP', verify=None):
     _proxy = {protocal: proxy}
 

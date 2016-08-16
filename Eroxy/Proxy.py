@@ -2,6 +2,9 @@ import time
 
 
 class Proxy:
+    """
+    代理类, 描述了代理对象。
+    """
     def __init__(self):
         self.__ip = ''
         self.__port = ''

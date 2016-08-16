@@ -8,7 +8,7 @@ def getTime(format="%Y-%m-%d %H:%M:%S", offset=0):
     formatTime = time.strftime(format, timeArray)
     return formatTime
 
-def execute(sql, args, host='localhost', user='earayu', passwd='qwqwqw', db='Eroxy', port=3306, charset='utf8'):
+def execute(sql, args, host='localhost', user='root', passwd='qwqwqw', db='Eroxy', port=3306, charset='utf8'):
     conn = pymysql.connect(host=host, user=user, passwd=passwd, db=db, port=port, charset=charset)
     cur = conn.cursor()  # 获取一个游标
     print(sql % args)
@@ -18,7 +18,7 @@ def execute(sql, args, host='localhost', user='earayu', passwd='qwqwqw', db='Ero
     conn.close()  # 释放数据库资源
 
 
-def select(sql, args=None, host='localhost', user='earayu', passwd='qwqwqw', db='Eroxy', port=3306, charset='utf8'):
+def select(sql, args=None, host='localhost', user='root', passwd='qwqwqw', db='Eroxy', port=3306, charset='utf8'):
     conn = pymysql.connect(host=host, user=user, passwd=passwd, db=db, port=port, charset=charset)
     cur = conn.cursor()  # 获取一个游标
     print(sql)
@@ -28,6 +28,7 @@ def select(sql, args=None, host='localhost', user='earayu', passwd='qwqwqw', db=
     cur.close()  # 关闭游标
     conn.close()  # 释放数据库资源
     return data
+
 
 
 if __name__ =='__main__':

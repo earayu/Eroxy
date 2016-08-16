@@ -1,0 +1,4 @@
+db.mysql.url=127.0.0.1
+db.mysql.username=root
+db.mysql.password=qwqwqw
+db.mysql.database=Eroxy
