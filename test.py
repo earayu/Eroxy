@@ -1,11 +1,16 @@
-import re
-import time
+from Eroxy import ProxyFarmer
+from Eroxy import ProxyPatrol
 
-ip = '222.33.192.238 222.33.192.232'
 
-r = re.compile(r'((2[0-4]\d|25[0-5]|[01]?\d\d?)\.){3}(2[0-4]\d|25[0-5]|[01]?\d\d?)')
-m = r.match(ip)
+if __name__ == '__main__':
+    famer = ProxyFarmer('http://www.xicidaili.com/')
+    famer.rules("\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", '(?<=<td>)\d{2,5}(?=</td>)')
 
-print(m.group())
-print(time.strftime("%Y-%m-%d %H:%M:%S",time.localtime()))
+    famer2 = ProxyFarmer('another url')
+    famer2.rules("ip regex", 'port regex')
 
+    famer.hibernate()
+    famer2.hibernate()
+
+    # 检验IP可用性和延迟
+    ProxyPatrol.loop()

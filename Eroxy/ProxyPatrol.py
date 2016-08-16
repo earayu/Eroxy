@@ -22,7 +22,7 @@ def patrol(ip, port, alive):
         execute(usql, (ip,))
 
 
-def loop(offset=-3600):
+def loop(offset=-1200):
     while True:
         sql = 'select ip,port,alive from proxy where inTime < %s'
         data = select(sql, getTime(offset=offset))

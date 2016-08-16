@@ -187,9 +187,9 @@ if __name__ == '__main__':
             "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36",
         }
 
-    p2 = ProxyFarmer('http://www.xicidaili.com/')
-    p2.rules("\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", '(?<=<td>)\d{2,5}(?=</td>)')
-    p2.headers = my_headers
 
-    p2.hibernate()
+    famer = ProxyFarmer('http://www.xicidaili.com/')
+    famer.rules("\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", '(?<=<td>)\d{2,5}(?=</td>)')
+    famer.headers = my_headers
+    famer.hibernate()
 
