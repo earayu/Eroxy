@@ -4,6 +4,7 @@ import time
 class Proxy:
     """
     代理类, 描述了代理对象。
+    ip、端口、延迟、代理类型(透明、高匿等)、位置、入库时间、协议、生命周期
     """
     def __init__(self):
         self.__ip = ''

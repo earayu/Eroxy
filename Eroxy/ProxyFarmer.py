@@ -6,6 +6,7 @@ import threading
 import queue
 import pymysql
 from Eroxy.utils import getTime
+import Eroxy.ProxyPatrol
 
 # 各个线程过滤完IP后都存在这里，按照delay排序
 que = queue.PriorityQueue()
@@ -32,6 +33,18 @@ class ProxyFarmer:
         self.__cookies = None
         self.__proxies = None
         self.__data = None
+
+        self.harvest = self.harvest
+        self.hibernate = self.hibernate
+        self.shive = self.shive
+
+    @property
+    def url(self):
+        return self.url
+
+    @url.setter
+    def url(self, url):
+        self.url = url
 
     @property
     def data(self):
@@ -77,7 +90,12 @@ class ProxyFarmer:
     def harvest(self):
         try:
             r = requests.post(self.__url, timeout=10, headers=self.__headers, cookies=self.__cookies, proxies=self.__proxies, data=self.__data)
-        except:
+            if r.status_code == 200:
+                print("抓取页面成功")
+            else:
+                print("抓取页面失败")
+        except Exception as e:
+            print(e)
             return None
 
         # 用正则解析页面内容
@@ -121,9 +139,11 @@ class ProxyFarmer:
 
     # 筛选raw_ip，挑出符合要求的
     # 为每个代理开一个线程, 然后测试可用性
-    def shive(self):
+    def shive(self, harvest=None):
+        if harvest is None:
+            harvest = self.harvest
         threads = []
-        for proxy in self.harvest():
+        for proxy in harvest():
             t = threading.Thread(target=judger, args=(proxy,))
             threads.append(t)
             t.start()
@@ -135,13 +155,21 @@ class ProxyFarmer:
             yield _proxy
 
     # 将数据持久化, 通过回调函数save, 可以自定义持久化方式。需要实现save接口
-    def hibernate(self):
-        gen = self.shive()
+    def hibernate(self, shive=None, save=None):
+        if shive is None:
+            shive = self.shive
+        if save is None:
+            save = save2mysql
+        gen = shive()
         for proxy in gen:
             try:
-                save2mysql(proxy)
+                save(proxy)
             except Exception as e:
                 print(e)
+
+
+def my_save(proxy):
+    print(proxy.ip)
 
 
 # pymysql的connection是非线程安全的
@@ -184,12 +212,20 @@ if __name__ == '__main__':
             "Cache-Control": "max-age=0",
             "Connection": "keep-alive",
             "Upgrade-Insecure-Requests": "1",
-            "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36",
+            "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36",
         }
 
+    Eroxy.ProxyPatrol.loop()
 
-    famer = ProxyFarmer('http://www.xicidaili.com/')
-    famer.rules("\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", '(?<=<td>)\d{2,5}(?=</td>)')
-    famer.headers = my_headers
-    famer.hibernate()
+    # for i in range(1, 11):
+    #     farmer = ProxyFarmer('http://www.kuaidaili.com/proxylist/%s' % i)
+    #     farmer.rules("\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", '(?<=<td data-title="PORT">)\d+(?=</td>)')
+    #     farmer.headers = my_headers
+    #     farmer.hibernate()
 
+    farmer2 = ProxyFarmer('http://www.idcloak.com/proxylist/free-proxy-ip-list.html')
+    farmer2.rules(ip_rule="\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}",
+                  port_rule='(?<=<td>)\d{2,5}(?=</td>)',
+                  protocol_rule='(?<=<td>)https?(?=</td>)',
+                  location_rule='(?<=">)[A-Za-z]*?(?=&nbsp;)')
+    farmer2.hibernate(save=my_save)

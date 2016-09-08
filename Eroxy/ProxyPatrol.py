@@ -23,6 +23,10 @@ def patrol(ip, port, alive):
 
 
 def loop(offset=-1200):
+    threading.Thread(target=_loop, args=(offset, )).start()
+
+
+def _loop(offset=-1200):
     while True:
         sql = 'select ip,port,alive from proxy where inTime < %s'
         data = select(sql, getTime(offset=offset))
@@ -31,6 +35,7 @@ def loop(offset=-1200):
                 t = threading.Thread(target=patrol, args=(i[0], i[1], i[2]))
                 t.start()
         time.sleep(abs(offset))
+
 
 
 

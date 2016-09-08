@@ -1,11 +1,12 @@
-create table proxy(
-ip char(15) primary key not null,
-port char(5) not null,
-delay int,
-protocal varchar(255),
-type varchar(255),
-location varchar(255),
-inTime datetime,
-life varchar(255),
-alive tinyint
-);
+CREATE TABLE `proxy` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `ip` char(15) NOT NULL,
+  `port` char(5) NOT NULL,
+  `delay` int(11) DEFAULT NULL,
+  `protocal` varchar(255) DEFAULT NULL,
+  `type` varchar(255) DEFAULT NULL,
+  `location` varchar(255) DEFAULT NULL,
+  `inTime` datetime DEFAULT NULL,
+  `alive` tinyint(4) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1844 DEFAULT CHARSET=utf8;
